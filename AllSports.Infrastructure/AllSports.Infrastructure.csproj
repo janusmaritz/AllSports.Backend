@@ -1,6 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AllSports.Application\AllSports.Application.csproj" />
     <ProjectReference Include="..\AllSports.Domain\AllSports.Domain.csproj" />
   </ItemGroup>
