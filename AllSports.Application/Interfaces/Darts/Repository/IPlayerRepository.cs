@@ -6,4 +6,5 @@ public interface IPlayerRepository
 {
     Task<int> AddPlayerAsync(PlayerProfile player);
     Task<bool> PlayerExistsAsync(string name);
+    Task<List<PlayerProfile>> GetAllPlayersAsync();
 }

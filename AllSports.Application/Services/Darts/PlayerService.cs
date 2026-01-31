@@ -51,4 +51,9 @@ public class PlayerService : IPlayerService
 
         return result;
     }
+
+    public async Task<List<PlayerProfile>> GetAllPlayersAsync()
+    {
+        return await _repo.GetAllPlayersAsync();
+    }
 }

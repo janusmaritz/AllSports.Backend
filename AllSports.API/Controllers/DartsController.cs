@@ -83,4 +83,11 @@ public class DartsController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpGet("players")]
+    public async Task<ActionResult<List<PlayerProfile>>> GetAllPlayers()
+    {
+        var players = await _playerService.GetAllPlayersAsync();
+        return Ok(players);
+    }
 }

@@ -25,4 +25,9 @@ public class PlayerRepository : IPlayerRepository
     {
         return await _context.Players.AnyAsync(p => p.FullName == name);
     }
+
+    public async Task<List<PlayerProfile>> GetAllPlayersAsync()
+    {
+        return await _context.Players.ToListAsync();
+    }
 }
