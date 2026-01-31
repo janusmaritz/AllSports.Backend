@@ -1,4 +1,7 @@
-﻿using AllSports.Domain.Entities;
+﻿using AllSports.API.Requests;
+using AllSports.Application.Interfaces.Darts.Services;
+using AllSports.Application.Responses;
+using AllSports.Domain.Entities.Darts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MyProject.API.Controllers;
@@ -7,6 +10,13 @@ namespace MyProject.API.Controllers;
 [Route("api/[controller]")]
 public class DartsController : ControllerBase
 {
+    private readonly IPlayerService _playerService;
+
+    public DartsController(IPlayerService playerService)
+    {
+        _playerService = playerService;
+    }
+
     [HttpGet]
     public ActionResult<List<DartsMatch>> GetMatches()
     {
@@ -35,5 +45,42 @@ public class DartsController : ControllerBase
         };
 
         return Ok(matches);
+    }
+
+    [HttpPost("scrape-profile")]
+    public async Task<ActionResult<PlayerProfile>> ScrapeAndSave([FromBody] ScrapeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Url))
+        {
+            return BadRequest("You must provide a URL.");
+        }
+
+        try
+        {
+            var result = await _playerService.ImportPlayerFromUrlAsync(request.Url);
+
+            return CreatedAtAction(nameof(GetMatches), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("scrape-bulk")]
+    public async Task<ActionResult<BulkImportResult>> ScrapeBulk([FromBody] BulkScrapeRequest request)
+    {
+        if (request.Urls == null || !request.Urls.Any())
+        {
+            return BadRequest("No URLs provided.");
+        }
+
+        var result = await _playerService.ImportPlayersAsync(request.Urls);
+
+        return Ok(result);
     }
 }
