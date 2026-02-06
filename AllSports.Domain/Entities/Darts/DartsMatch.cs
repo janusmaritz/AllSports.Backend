@@ -1,4 +1,4 @@
-﻿namespace AllSports.Domain.Entities;
+﻿namespace AllSports.Domain.Entities.Darts;
 
 public class DartsMatch
 {
