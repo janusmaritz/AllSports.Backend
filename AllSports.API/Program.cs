@@ -3,10 +3,19 @@ using AllSports.Application.Interfaces.Darts.Services;
 using AllSports.Application.Services.Darts;
 using AllSports.Infrastructure.Persistence;
 using AllSports.Infrastructure.Services.Darts;
+using Azure.Identity;
 using Microsoft.EntityFrameworkCore;
 using MyProject.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsProduction())
+{
+    var keyVaultName = builder.Configuration["KeyVaultName"];
+    var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+
+    builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+}
 
 // 1. CORS Setup
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -46,7 +55,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseCors(MyAllowSpecificOrigins);
 
