@@ -12,54 +12,77 @@ var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsProduction())
 {
     var keyVaultName = builder.Configuration["KeyVaultName"];
-    var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
 
-    builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+    if (!string.IsNullOrEmpty(keyVaultName))
+    {
+        try
+        {
+            var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+            builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+            Console.WriteLine($"Successfully connected to Key Vault: {keyVaultName}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"CRITICAL ERROR: Failed to connect to Key Vault: {ex.Message}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("WARNING: 'KeyVaultName' environment variable is missing.");
+    }
 }
 
-// 1. CORS Setup
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: MyAllowSpecificOrigins,
                       policy =>
                       {
-                          policy.WithOrigins("http://localhost:4200", "http://localhost:5000", "http://localhost:5001")
+                          policy.SetIsOriginAllowed(origin => true)
                                 .AllowAnyHeader()
-                                .AllowAnyMethod();
+                                .AllowAnyMethod()
+                                .AllowCredentials();
                       });
 });
 
-//Database Context
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrEmpty(connectionString))
+{
+    Console.WriteLine("WARNING: Connection String 'DefaultConnection' is NULL.");
+}
 
-//Infrastructure
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// Infrastructure
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IDartsScraper, DartsScraper>();
 
-//Application
+// Application
 builder.Services.AddScoped<IPlayerService, PlayerService>();
 
-// 2. Add Services
+// Add Services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 3. Configure Pipeline
+// Configure Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseDeveloperExceptionPage();
+}
 
-//app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 
 app.UseCors(MyAllowSpecificOrigins);
 
-// 4. Map Endpoints
 app.MapControllers();
 
 app.Run();
