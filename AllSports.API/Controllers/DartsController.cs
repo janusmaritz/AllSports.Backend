@@ -11,10 +11,12 @@ namespace MyProject.API.Controllers;
 public class DartsController : ControllerBase
 {
     private readonly IPlayerService _playerService;
+    private readonly IDartsRankingService _rankingService;
 
-    public DartsController(IPlayerService playerService)
+    public DartsController(IPlayerService playerService, IDartsRankingService rankingService)
     {
         _playerService = playerService;
+        _rankingService = rankingService;
     }
 
     [HttpGet]
@@ -89,5 +91,32 @@ public class DartsController : ControllerBase
     {
         var players = await _playerService.GetAllPlayersAsync();
         return Ok(players);
+    }
+
+    [HttpPost("scrape-rankings")]
+    public async Task<ActionResult<List<DartsRanking>>> ScrapeRankings([FromBody] ScrapeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Url))
+        {
+            return BadRequest("You must provide a URL.");
+        }
+
+        try
+        {
+            var result = await _rankingService.ImportRankingsFromUrlAsync(request.Url);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("rankings")]
+    public async Task<ActionResult<List<DartsRanking>>> GetAllRankings()
+    {
+        var rankings = await _rankingService.GetAllRankingsAsync();
+        return Ok(rankings);
     }
 }

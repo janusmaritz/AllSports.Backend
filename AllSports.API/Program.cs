@@ -1,74 +1,30 @@
-using AllSports.Application.Interfaces.Darts.Repository;
-using AllSports.Application.Interfaces.Darts.Services;
-using AllSports.Application.Services.Darts;
-using AllSports.Infrastructure.Persistence;
-using AllSports.Infrastructure.Services.Darts;
+using AllSports.API.Extensions;
 using Azure.Identity;
-using Microsoft.EntityFrameworkCore;
-using MyProject.Infrastructure.Repositories;
+
+const string CorsPolicyName = "CorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 
 if (builder.Environment.IsProduction())
 {
-    var keyVaultName = builder.Configuration["KeyVaultName"];
+    var keyVaultName = builder.Configuration["KeyVaultName"]
+        ?? throw new InvalidOperationException("Configuration value 'KeyVaultName' is missing.");
 
-    if (!string.IsNullOrEmpty(keyVaultName))
-    {
-        try
-        {
-            var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
-            builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
-            Console.WriteLine($"Successfully connected to Key Vault: {keyVaultName}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"CRITICAL ERROR: Failed to connect to Key Vault: {ex.Message}");
-        }
-    }
-    else
-    {
-        Console.WriteLine("WARNING: 'KeyVaultName' environment variable is missing.");
-    }
+    var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
 }
 
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-                      policy =>
-                      {
-                          policy.SetIsOriginAllowed(origin => true)
-                                .AllowAnyHeader()
-                                .AllowAnyMethod()
-                                .AllowCredentials();
-                      });
-});
+builder.Services.AddConfiguredCors(builder.Configuration, builder.Environment, CorsPolicyName);
+builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddApplicationServices();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrEmpty(connectionString))
-{
-    Console.WriteLine("WARNING: Connection String 'DefaultConnection' is NULL.");
-}
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
-
-// Infrastructure
-builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
-builder.Services.AddScoped<IDartsScraper, DartsScraper>();
-
-// Application
-builder.Services.AddScoped<IPlayerService, PlayerService>();
-
-// Add Services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-// Configure Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -76,12 +32,16 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseDeveloperExceptionPage();
+    app.UseExceptionHandler();
+    app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+app.UseCors(CorsPolicyName);
 
-app.UseCors(MyAllowSpecificOrigins);
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.MapControllers();
 

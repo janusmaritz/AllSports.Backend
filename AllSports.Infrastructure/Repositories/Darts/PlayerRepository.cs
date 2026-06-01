@@ -3,7 +3,7 @@ using AllSports.Domain.Entities.Darts;
 using Microsoft.EntityFrameworkCore;
 using AllSports.Infrastructure.Persistence;
 
-namespace MyProject.Infrastructure.Repositories;
+namespace AllSports.Infrastructure.Repositories.Darts;
 
 public class PlayerRepository : IPlayerRepository
 {

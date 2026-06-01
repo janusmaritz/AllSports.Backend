@@ -4,5 +4,7 @@ namespace AllSports.Application.Interfaces.Darts.Services;
 
 public interface IDartsScraper
 {
-    Task<PlayerProfile> ScrapePlayerAsync(string profileUrl);
+    Task<PlayerProfile?> ScrapePlayerAsync(string profileUrl);
+
+    Task<List<DartsRanking>> ScrapeRankingsAsync(string rankingsUrl);
 }
