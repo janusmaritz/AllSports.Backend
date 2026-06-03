@@ -1,4 +1,5 @@
 using AllSports.API.Extensions;
+using AllSports.Infrastructure.Persistence;
 using Azure.Identity;
 
 const string CorsPolicyName = "CorsPolicy";
@@ -45,4 +46,40 @@ if (!app.Environment.IsDevelopment())
 
 app.MapControllers();
 
+if (app.Environment.IsDevelopment())
+{
+    await WarmUpDatabaseAsync(app.Services, app.Logger);
+}
+
 app.Run();
+
+static async Task WarmUpDatabaseAsync(IServiceProvider services, ILogger logger)
+{
+    using var scope = services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    const int maxAttempts = 5;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        if (await db.Database.CanConnectAsync())
+        {
+            if (attempt > 1)
+                logger.LogInformation("Database warm-up succeeded on attempt {Attempt}", attempt);
+            return;
+        }
+
+        if (attempt < maxAttempts)
+        {
+            logger.LogWarning(
+                "Database warm-up attempt {Attempt}/{Max} failed. Retrying in 20s…",
+                attempt, maxAttempts);
+            await Task.Delay(TimeSpan.FromSeconds(20));
+        }
+        else
+        {
+            logger.LogError(
+                "Database warm-up failed after {Max} attempts. Check that LocalDB is running.",
+                maxAttempts);
+        }
+    }
+}

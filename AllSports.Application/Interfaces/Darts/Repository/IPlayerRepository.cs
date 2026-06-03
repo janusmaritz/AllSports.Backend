@@ -1,4 +1,5 @@
-﻿using AllSports.Domain.Entities.Darts;
+﻿using AllSports.Application.Queries.Darts;
+using AllSports.Domain.Entities.Darts;
 
 namespace AllSports.Application.Interfaces.Darts.Repository;
 
@@ -6,5 +7,5 @@ public interface IPlayerRepository
 {
     Task<int> AddPlayerAsync(PlayerProfile player);
     Task<bool> PlayerExistsAsync(string name);
-    Task<List<PlayerProfile>> GetAllPlayersAsync();
+    Task<(List<PlayerProfile> Items, int TotalCount)> GetPlayersAsync(PlayerQuery query);
 }
