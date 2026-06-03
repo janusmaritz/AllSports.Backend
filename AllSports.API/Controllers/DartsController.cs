@@ -1,5 +1,7 @@
 ﻿using AllSports.API.Requests;
+using AllSports.Application.Common.Pagination;
 using AllSports.Application.Interfaces.Darts.Services;
+using AllSports.Application.Queries.Darts;
 using AllSports.Application.Responses;
 using AllSports.Domain.Entities.Darts;
 using Microsoft.AspNetCore.Mvc;
@@ -87,10 +89,9 @@ public class DartsController : ControllerBase
     }
 
     [HttpGet("players")]
-    public async Task<ActionResult<List<PlayerProfile>>> GetAllPlayers()
+    public async Task<ActionResult<PagedResult<PlayerProfile>>> GetAllPlayers([FromQuery] PlayerQuery query)
     {
-        var players = await _playerService.GetAllPlayersAsync();
-        return Ok(players);
+        return Ok(await _playerService.GetPlayersAsync(query));
     }
 
     [HttpPost("scrape-rankings")]
@@ -114,9 +115,8 @@ public class DartsController : ControllerBase
     }
 
     [HttpGet("rankings")]
-    public async Task<ActionResult<List<DartsRanking>>> GetAllRankings()
+    public async Task<ActionResult<PagedResult<DartsRanking>>> GetAllRankings([FromQuery] RankingQuery query)
     {
-        var rankings = await _rankingService.GetAllRankingsAsync();
-        return Ok(rankings);
+        return Ok(await _rankingService.GetRankingsAsync(query));
     }
 }

@@ -8,4 +8,6 @@ public class PlayerProfile
     public int? Age { get; set; }
     public string DartsUsed { get; set; } = string.Empty;
     public string WalkOnSong { get; set; } = string.Empty;
+    public string? DartBrand { get; set; }
+    public string? DartWeight { get; set; }
 }

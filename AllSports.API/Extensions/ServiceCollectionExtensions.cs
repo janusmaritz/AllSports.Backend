@@ -27,7 +27,10 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(connectionString, sqlOptions =>
-                sqlOptions.EnableRetryOnFailure()));
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(15),
+                    errorNumbersToAdd: null)));
 
         services.AddScoped<IPlayerRepository, PlayerRepository>();
         services.AddScoped<IDartsRankingRepository, DartsRankingRepository>();

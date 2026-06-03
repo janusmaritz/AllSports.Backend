@@ -8,6 +8,13 @@ namespace AllSports.Infrastructure.Services.Darts;
 
 public class DartsScraper : IDartsScraper
 {
+    private static readonly string[] KnownBrands =
+    [
+        "Red Dragon", "Target", "Unicorn", "Winmau", "Harrows",
+        "Shot", "Loxley", "Mission", "Bull's", "Cosmo", "One80",
+        "Datadart", "XQ Max", "McDart", "Dynasty"
+    ];
+
     public async Task<PlayerProfile?> ScrapePlayerAsync(string url)
     {
         var web = new HtmlWeb();
@@ -26,21 +33,24 @@ public class DartsScraper : IDartsScraper
             profile.FullName = nameNode.InnerText.Trim();
         }
 
-        // Nickname
-        profile.Nickname = GetValueByLabel(container, "Nickname");
+        profile.Nickname  = GetValueByLabel(container, "Nickname");
+        profile.DartsUsed = GetValueByLabel(container, "Used Darts");
+        profile.WalkOnSong = GetValueByLabel(container, "Walk-on");
 
-        // Age
         var ageText = GetValueByLabel(container, "Age");
         if (int.TryParse(ageText, out int age))
-        {
             profile.Age = age;
-        }
 
-        // Darts Used
-        profile.DartsUsed = GetValueByLabel(container, "Used Darts");
+        // Try a dedicated label first; fall back to parsing DartsUsed
+        var brandFromLabel = GetValueByLabel(container, "Darts Brand");
+        profile.DartBrand = brandFromLabel != "Unknown"
+            ? brandFromLabel
+            : ExtractBrand(profile.DartsUsed);
 
-        // Walk-on Song (Searching for text "Walk-on" covers "Walk-on Music (Song)")
-        profile.WalkOnSong = GetValueByLabel(container, "Walk-on");
+        var weightFromLabel = GetValueByLabel(container, "Dart Weight");
+        profile.DartWeight = weightFromLabel != "Unknown"
+            ? weightFromLabel
+            : ExtractWeight(profile.DartsUsed);
 
         return profile;
     }
@@ -58,9 +68,7 @@ public class DartsScraper : IDartsScraper
 
         var rankings = new List<DartsRanking>();
         if (rankingNodes == null)
-        {
             return rankings;
-        }
 
         var scrapedAtUtc = DateTime.UtcNow;
 
@@ -82,11 +90,11 @@ public class DartsScraper : IDartsScraper
 
             rankings.Add(new DartsRanking
             {
-                Rank = rank,
-                PlayerName = playerText,
-                MoneyAmount = moneyAmount,
-                SourceUrl = url,
-                ScrapedAtUtc = scrapedAtUtc
+                Rank          = rank,
+                PlayerName    = playerText,
+                MoneyAmount   = moneyAmount,
+                SourceUrl     = url,
+                ScrapedAtUtc  = scrapedAtUtc
             });
         }
 
@@ -96,21 +104,38 @@ public class DartsScraper : IDartsScraper
     private string GetValueByLabel(HtmlNode parentContainer, string labelText)
     {
         var node = parentContainer.SelectSingleNode($".//div[contains(text(), '{labelText}')]/following-sibling::div[1]");
-
         return node != null ? HtmlEntity.DeEntitize(node.InnerText.Trim()) : "Unknown";
+    }
+
+    private static string? ExtractBrand(string dartsUsed)
+    {
+        if (string.IsNullOrWhiteSpace(dartsUsed)) return null;
+        var lower = dartsUsed.ToLowerInvariant();
+        foreach (var brand in KnownBrands)
+        {
+            if (lower.Contains(brand.ToLowerInvariant())) return brand;
+        }
+        return null;
+    }
+
+    private static string? ExtractWeight(string dartsUsed)
+    {
+        if (string.IsNullOrWhiteSpace(dartsUsed)) return null;
+        // Matches "23g", "23 gram", "21.5g", "21,5 Gram" (European decimal comma)
+        var match = Regex.Match(dartsUsed, @"(\d+(?:[.,]\d+)?)\s*g(?:ram)?", RegexOptions.IgnoreCase);
+        if (!match.Success) return null;
+        return match.Groups[1].Value.Replace(',', '.') + "g";
     }
 
     private static bool TryParseRank(string value, out int rank)
     {
         var match = Regex.Match(value, @"\d+");
-
         return int.TryParse(match.Value, out rank);
     }
 
     private static bool TryParseMoneyAmount(string value, out decimal moneyAmount)
     {
         var numericValue = Regex.Replace(value, @"[^\d.]", string.Empty);
-
         return decimal.TryParse(numericValue, NumberStyles.Number, CultureInfo.InvariantCulture, out moneyAmount);
     }
 }
