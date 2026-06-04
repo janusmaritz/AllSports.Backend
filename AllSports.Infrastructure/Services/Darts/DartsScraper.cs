@@ -1,8 +1,10 @@
+using System.Globalization;
+using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 using AllSports.Application.Interfaces.Darts.Services;
 using AllSports.Domain.Entities.Darts;
 using HtmlAgilityPack;
-using System.Globalization;
-using System.Text.RegularExpressions;
 
 namespace AllSports.Infrastructure.Services.Darts;
 
@@ -29,28 +31,19 @@ public class DartsScraper : IDartsScraper
 
         var nameNode = container.SelectSingleNode(".//h1");
         if (nameNode != null)
-        {
-            profile.FullName = nameNode.InnerText.Trim();
-        }
+            profile.FullName = NormalizeText(nameNode.InnerText);
 
-        profile.Nickname  = GetValueByLabel(container, "Nickname");
-        profile.DartsUsed = GetValueByLabel(container, "Used Darts");
-        profile.WalkOnSong = GetValueByLabel(container, "Walk-on");
+        profile.Nickname   = GetValueByLabel(container, "Nickname") ?? string.Empty;
+        profile.DartsUsed  = GetValueByLabel(container, "Used Darts") ?? string.Empty;
+        profile.WalkOnSong = GetValueByLabel(container, "Walk-on") ?? string.Empty;
 
         var ageText = GetValueByLabel(container, "Age");
-        if (int.TryParse(ageText, out int age))
+        if (ageText is not null && int.TryParse(ageText, out int age))
             profile.Age = age;
 
         // Try a dedicated label first; fall back to parsing DartsUsed
-        var brandFromLabel = GetValueByLabel(container, "Darts Brand");
-        profile.DartBrand = brandFromLabel != "Unknown"
-            ? brandFromLabel
-            : ExtractBrand(profile.DartsUsed);
-
-        var weightFromLabel = GetValueByLabel(container, "Dart Weight");
-        profile.DartWeight = weightFromLabel != "Unknown"
-            ? weightFromLabel
-            : ExtractWeight(profile.DartsUsed);
+        profile.DartBrand  = GetValueByLabel(container, "Darts Brand") ?? ExtractBrand(profile.DartsUsed);
+        profile.DartWeight = GetValueByLabel(container, "Dart Weight") ?? ExtractWeight(profile.DartsUsed);
 
         return profile;
     }
@@ -75,10 +68,10 @@ public class DartsScraper : IDartsScraper
         foreach (var node in rankingNodes)
         {
             var rankText = HtmlEntity.DeEntitize(node.SelectSingleNode("./span[1]")?.InnerText ?? string.Empty).Trim();
-            var playerText = HtmlEntity.DeEntitize(
+            var playerText = NormalizeText(
                 node.SelectSingleNode(".//a[contains(@href, '/players/')]/span")?.InnerText
                 ?? node.SelectSingleNode(".//a[contains(@href, '/players/')]")?.InnerText
-                ?? string.Empty).Trim();
+                ?? string.Empty);
             var moneyText = HtmlEntity.DeEntitize(node.SelectSingleNode("./span[contains(@class, 'ml-auto')]")?.InnerText ?? string.Empty).Trim();
 
             if (!TryParseRank(rankText, out var rank)
@@ -101,11 +94,14 @@ public class DartsScraper : IDartsScraper
         return rankings;
     }
 
-    private string GetValueByLabel(HtmlNode parentContainer, string labelText)
+    private static string? GetValueByLabel(HtmlNode parentContainer, string labelText)
     {
         var node = parentContainer.SelectSingleNode($".//div[contains(text(), '{labelText}')]/following-sibling::div[1]");
-        return node != null ? HtmlEntity.DeEntitize(node.InnerText.Trim()) : "Unknown";
+        return node is not null ? NormalizeText(node.InnerText) : null;
     }
+
+    private static string NormalizeText(string value) =>
+        WebUtility.HtmlDecode(value).Normalize(NormalizationForm.FormC).Trim();
 
     private static string? ExtractBrand(string dartsUsed)
     {

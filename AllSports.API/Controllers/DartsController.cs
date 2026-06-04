@@ -1,4 +1,4 @@
-﻿using AllSports.API.Requests;
+﻿using AllSports.API.Requests.Darts;
 using AllSports.Application.Common.Pagination;
 using AllSports.Application.Interfaces.Darts.Services;
 using AllSports.Application.Queries.Darts;
@@ -6,7 +6,7 @@ using AllSports.Application.Responses;
 using AllSports.Domain.Entities.Darts;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MyProject.API.Controllers;
+namespace AllSports.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -24,31 +24,7 @@ public class DartsController : ControllerBase
     [HttpGet]
     public ActionResult<List<DartsMatch>> GetMatches()
     {
-        var matches = new List<DartsMatch>
-        {
-            new DartsMatch
-            {
-                Id = 1,
-                TournamentName = "World Darts Championship",
-                MatchDate = DateTime.Now.AddDays(1),
-                PlayerOneName = "Michael van Gerwen",
-                PlayerTwoName = "Luke Littler",
-                IsFinished = false
-            },
-            new DartsMatch
-            {
-                Id = 2,
-                TournamentName = "Premier League Night 1",
-                MatchDate = DateTime.Now.AddDays(-1),
-                PlayerOneName = "Gerwyn Price",
-                PlayerTwoName = "Michael Smith",
-                PlayerOneScore = 6,
-                PlayerTwoScore = 4,
-                IsFinished = true
-            }
-        };
-
-        return Ok(matches);
+        return Ok(Array.Empty<DartsMatch>());
     }
 
     [HttpPost("scrape-profile")]
@@ -63,13 +39,13 @@ public class DartsController : ControllerBase
         {
             var result = await _playerService.ImportPlayerFromUrlAsync(request.Url);
 
-            return CreatedAtAction(nameof(GetMatches), new { id = result.Id }, result);
+            return CreatedAtAction(nameof(GetPlayer), new { id = result.Id }, result);
         }
         catch (InvalidOperationException ex)
         {
             return Conflict(ex.Message);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
         }
@@ -78,7 +54,7 @@ public class DartsController : ControllerBase
     [HttpPost("scrape-bulk")]
     public async Task<ActionResult<BulkImportResult>> ScrapeBulk([FromBody] BulkScrapeRequest request)
     {
-        if (request.Urls == null || !request.Urls.Any())
+        if (request.Urls.Count == 0)
         {
             return BadRequest("No URLs provided.");
         }
@@ -86,6 +62,14 @@ public class DartsController : ControllerBase
         var result = await _playerService.ImportPlayersAsync(request.Urls);
 
         return Ok(result);
+    }
+
+    [HttpGet("players/{id:int}")]
+    public async Task<ActionResult<PlayerProfile>> GetPlayer(int id)
+    {
+        var player = await _playerService.GetPlayerByIdAsync(id);
+        if (player is null) return NotFound();
+        return Ok(player);
     }
 
     [HttpGet("players")]
@@ -108,7 +92,7 @@ public class DartsController : ControllerBase
 
             return Ok(result);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
         }
