@@ -1,4 +1,4 @@
-﻿namespace AllSports.API.Requests;
+﻿namespace AllSports.API.Requests.Darts;
 
 public class ScrapeRequest
 {
