@@ -9,5 +9,6 @@ public interface IPlayerService
 {
     Task<PlayerProfile> ImportPlayerFromUrlAsync(string url);
     Task<BulkImportResult> ImportPlayersAsync(List<string> urls);
+    Task<PlayerProfile?> GetPlayerByIdAsync(int id);
     Task<PagedResult<PlayerProfile>> GetPlayersAsync(PlayerQuery query);
 }

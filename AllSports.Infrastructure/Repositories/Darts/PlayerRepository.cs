@@ -22,6 +22,9 @@ public class PlayerRepository : IPlayerRepository
         return player.Id;
     }
 
+    public async Task<PlayerProfile?> GetPlayerByIdAsync(int id) =>
+        await _context.Players.FindAsync(id);
+
     public async Task<bool> PlayerExistsAsync(string name)
     {
         return await _context.Players.AnyAsync(p => p.FullName.ToLower() == name.ToLower());

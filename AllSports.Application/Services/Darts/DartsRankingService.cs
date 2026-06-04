@@ -21,7 +21,7 @@ public class DartsRankingService : IDartsRankingService
     {
         var rankings = await _scraper.ScrapeRankingsAsync(url);
         if (rankings.Count == 0)
-            throw new Exception("No rankings found.");
+            throw new ArgumentException("No rankings found at the provided URL.");
 
         await _repo.ReplaceRankingsAsync(url, rankings);
 
