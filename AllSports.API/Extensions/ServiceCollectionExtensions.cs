@@ -1,10 +1,18 @@
+using AllSports.Application.Interfaces.Auth.Repository;
+using AllSports.Application.Interfaces.Auth.Services;
 using AllSports.Application.Interfaces.Darts.Repository;
 using AllSports.Application.Interfaces.Darts.Services;
+using AllSports.Application.Services.Auth;
 using AllSports.Application.Services.Darts;
 using AllSports.Infrastructure.Persistence;
+using AllSports.Infrastructure.Repositories.Auth;
 using AllSports.Infrastructure.Repositories.Darts;
+using AllSports.Infrastructure.Services.Auth;
 using AllSports.Infrastructure.Services.Darts;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace AllSports.API.Extensions;
 
@@ -14,6 +22,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<IDartsRankingService, DartsRankingService>();
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }
@@ -35,6 +44,39 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPlayerRepository, PlayerRepository>();
         services.AddScoped<IDartsRankingRepository, DartsRankingRepository>();
         services.AddScoped<IDartsScraper, DartsScraper>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPasswordHasher, PasswordHashingService>();
+        services.AddScoped<ITokenService, JwtTokenService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddJwtAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var secret = configuration["Jwt:Secret"]
+            ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+        var issuer = configuration["Jwt:Issuer"] ?? "AllSports";
+        var audience = configuration["Jwt:Audience"] ?? "AllSports";
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = issuer,
+                    ValidAudience = audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+                };
+            });
+
+        services.AddAuthorization();
 
         return services;
     }
