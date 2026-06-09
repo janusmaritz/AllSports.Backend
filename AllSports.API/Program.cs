@@ -18,6 +18,7 @@ if (builder.Environment.IsProduction())
 builder.Services.AddConfiguredCors(builder.Configuration, builder.Environment, CorsPolicyName);
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
+builder.Services.AddJwtAuthentication(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -44,6 +45,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 if (app.Environment.IsDevelopment())

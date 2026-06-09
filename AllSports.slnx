@@ -3,4 +3,5 @@
   <Project Path="AllSports.Application/AllSports.Application.csproj" />
   <Project Path="AllSports.Domain/AllSports.Domain.csproj" />
   <Project Path="AllSports.Infrastructure/AllSports.Infrastructure.csproj" />
+  <Project Path="AllSports.Tests/AllSports.Tests.csproj" />
 </Solution>

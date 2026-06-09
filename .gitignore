@@ -59,3 +59,7 @@ nunit-*.xml
 
 # User-specific files (preferences)
 *.user
+
+# Claude Code
+.claude/
+CLAUDE.md
