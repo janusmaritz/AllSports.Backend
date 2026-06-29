@@ -1,10 +1,15 @@
+using AllSports.Application.Interfaces.Auth.Services;
 using AllSports.Application.Interfaces.Darts.Repository;
 using AllSports.Application.Interfaces.Darts.Services;
 using AllSports.Application.Services.Darts;
 using AllSports.Infrastructure.Persistence;
 using AllSports.Infrastructure.Repositories.Darts;
+using AllSports.Infrastructure.Services.Auth;
 using AllSports.Infrastructure.Services.Darts;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace AllSports.API.Extensions;
 
@@ -26,15 +31,51 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString, sqlOptions =>
-                sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(15),
-                    errorNumbersToAdd: null)));
+            options.UseNpgsql(connectionString));
+
+        var supabaseUrl = configuration["Supabase:Url"]
+            ?? throw new InvalidOperationException("Supabase:Url is missing.");
+        var supabaseAnonKey = configuration["Supabase:AnonKey"]
+            ?? throw new InvalidOperationException("Supabase:AnonKey is missing.");
+
+        services.AddHttpClient<IAuthService, SupabaseAuthService>(client =>
+        {
+            client.BaseAddress = new Uri(supabaseUrl);
+            client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
+        });
 
         services.AddScoped<IPlayerRepository, PlayerRepository>();
         services.AddScoped<IDartsRankingRepository, DartsRankingRepository>();
         services.AddScoped<IDartsScraper, DartsScraper>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddJwtAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var supabaseUrl = configuration["Supabase:Url"]
+            ?? throw new InvalidOperationException("Supabase:Url is missing.");
+        var jwtSecret = configuration["Supabase:JwtSecret"]
+            ?? throw new InvalidOperationException("Supabase:JwtSecret is missing.");
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = $"{supabaseUrl.TrimEnd('/')}/auth/v1",
+                    ValidateAudience = true,
+                    ValidAudience = "authenticated",
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                };
+            });
+
+        services.AddAuthorization();
 
         return services;
     }

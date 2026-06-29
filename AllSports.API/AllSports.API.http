@@ -1,6 +1,127 @@
-@AllSports.API_HostAddress = http://localhost:5287
+@AllSports.API_HostAddress = http://localhost:5000
 
-GET {{AllSports.API_HostAddress}}/weatherforecast/
+### ── AUTH ────────────────────────────────────────────────────────────────────
+
+### 1. Register a new user (expect 201)
+POST {{AllSports.API_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@allsports.com",
+  "password": "Password123!"
+}
+
+###
+
+### 2. Login with correct credentials (expect 200 + token)
+POST {{AllSports.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@allsports.com",
+  "password": "Password123!"
+}
+
+###
+
+### 3. Login with wrong password (expect 401)
+POST {{AllSports.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@allsports.com",
+  "password": "WrongPassword!"
+}
+
+###
+
+### 4. Login with non-existent email (expect 401)
+POST {{AllSports.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody@allsports.com",
+  "password": "Password123!"
+}
+
+###
+
+### 5. Register duplicate email (expect 409 Conflict)
+POST {{AllSports.API_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@allsports.com",
+  "password": "AnotherPass123!"
+}
+
+###
+
+### 6. Register with invalid email format (expect 400)
+POST {{AllSports.API_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "Password123!"
+}
+
+###
+
+### 7. Register with short password (expect 400 — MinLength 8)
+POST {{AllSports.API_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "short@allsports.com",
+  "password": "abc"
+}
+
+###
+
+### 8. Login with missing fields (expect 400)
+POST {{AllSports.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "",
+  "password": ""
+}
+
+###
+
+### 9. Register — email case-insensitivity check (expect 409, same user as #1)
+POST {{AllSports.API_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "TEST@AllSports.COM",
+  "password": "Password123!"
+}
+
+###
+
+### 10. Login — email case-insensitivity check (expect 200, same user as #1)
+POST {{AllSports.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "TEST@AllSports.COM",
+  "password": "Password123!"
+}
+
+###
+
+### ── DARTS (existing endpoints — verify not broken) ─────────────────────────
+
+### 11. Get players — no auth required (expect 200)
+GET {{AllSports.API_HostAddress}}/api/darts/players
+Accept: application/json
+
+###
+
+### 12. Get rankings — no auth required (expect 200)
+GET {{AllSports.API_HostAddress}}/api/darts/rankings
 Accept: application/json
 
 ###

@@ -1,4 +1,4 @@
-﻿using AllSports.Domain.Entities.Darts;
+using AllSports.Domain.Entities.Darts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AllSports.Infrastructure.Persistence;
