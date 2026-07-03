@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<IDartsRankingService, DartsRankingService>();
+        services.AddScoped<IDartsTournamentService, DartsTournamentService>();
 
         return services;
     }
@@ -46,6 +47,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IPlayerRepository, PlayerRepository>();
         services.AddScoped<IDartsRankingRepository, DartsRankingRepository>();
+        services.AddScoped<IDartsTournamentRepository, DartsTournamentRepository>();
         services.AddScoped<IDartsScraper, DartsScraper>();
 
         return services;

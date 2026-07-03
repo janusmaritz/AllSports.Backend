@@ -14,11 +14,16 @@ public class DartsController : ControllerBase
 {
     private readonly IPlayerService _playerService;
     private readonly IDartsRankingService _rankingService;
+    private readonly IDartsTournamentService _tournamentService;
 
-    public DartsController(IPlayerService playerService, IDartsRankingService rankingService)
+    public DartsController(
+        IPlayerService playerService,
+        IDartsRankingService rankingService,
+        IDartsTournamentService tournamentService)
     {
         _playerService = playerService;
         _rankingService = rankingService;
+        _tournamentService = tournamentService;
     }
 
     [HttpGet]
@@ -102,5 +107,31 @@ public class DartsController : ControllerBase
     public async Task<ActionResult<PagedResult<DartsRanking>>> GetAllRankings([FromQuery] RankingQuery query)
     {
         return Ok(await _rankingService.GetRankingsAsync(query));
+    }
+
+    [HttpPost("scrape-tournaments")]
+    public async Task<ActionResult<List<DartsTournament>>> ScrapeTournaments([FromBody] ScrapeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Url))
+        {
+            return BadRequest("You must provide a URL.");
+        }
+
+        try
+        {
+            var result = await _tournamentService.ImportTournamentsFromUrlAsync(request.Url);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("tournaments")]
+    public async Task<ActionResult<PagedResult<DartsTournament>>> GetAllTournaments([FromQuery] TournamentQuery query)
+    {
+        return Ok(await _tournamentService.GetTournamentsAsync(query));
     }
 }
