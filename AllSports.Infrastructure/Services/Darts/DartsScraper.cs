@@ -94,6 +94,131 @@ public class DartsScraper : IDartsScraper
         return rankings;
     }
 
+    public async Task<List<DartsTournament>> ScrapeTournamentsAsync(string url)
+    {
+        // The calendar page is ~40 MB, which can exceed HtmlWeb's fixed 100-second
+        // HttpClient timeout — download it ourselves with a more generous limit.
+        using var httpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+        var html = await httpClient.GetStringAsync(url);
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+
+        // The calendar page interleaves month headings (<h3>January 2026</h3>) with
+        // tournament rows. Select both in document order and track the current month.
+        var nodes = doc.DocumentNode.SelectNodes(
+            "//h3[contains(@class, 'inline-flex')] | " +
+            "//div[contains(concat(' ', normalize-space(@class), ' '), ' py-3 ')]" +
+            "[.//a[contains(@href, '/tournaments/')]]");
+
+        var tournaments = new List<DartsTournament>();
+        if (nodes == null)
+            return tournaments;
+
+        var scrapedAtUtc = DateTime.UtcNow;
+        DateOnly? currentMonth = null;
+        var seen = new HashSet<string>();
+
+        foreach (var node in nodes)
+        {
+            if (node.Name == "h3")
+            {
+                currentMonth = ParseMonthHeading(NormalizeText(node.InnerText));
+                continue;
+            }
+
+            // Rows before the first month heading (e.g. the featured slider) are skipped.
+            if (currentMonth is null) continue;
+
+            var link = node.SelectSingleNode(".//a[contains(@href, '/tournaments/')]");
+            var name = NormalizeText(link?.SelectSingleNode(".//h2")?.InnerText ?? link?.InnerText ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            var locationNode = node.SelectSingleNode(".//img[contains(@src, '/images/flags/')]/following-sibling::span[1]");
+            var location = locationNode is not null ? NormalizeText(locationNode.InnerText) : string.Empty;
+
+            var dateNode = node.SelectSingleNode(".//div[contains(@class, 'text-sm')]/div[last()]");
+            var dateText = dateNode is not null ? NormalizeText(dateNode.InnerText) : string.Empty;
+            if (!TryParseDateRange(dateText, currentMonth.Value, out var startDate, out var endDate)) continue;
+
+            // Multi-month tournaments can be listed under more than one month heading.
+            if (!seen.Add($"{name}|{startDate:O}")) continue;
+
+            tournaments.Add(new DartsTournament
+            {
+                Name         = name,
+                Location     = location,
+                Organisation = DetectOrganisation(node),
+                StartDate    = startDate,
+                EndDate      = endDate,
+                DetailUrl    = link?.GetAttributeValue("href", string.Empty) ?? string.Empty,
+                SourceUrl    = url,
+                ScrapedAtUtc = scrapedAtUtc
+            });
+        }
+
+        return tournaments;
+    }
+
+    private static DateOnly? ParseMonthHeading(string headingText)
+    {
+        // e.g. "January 2026"
+        if (DateTime.TryParseExact(headingText, "MMMM yyyy", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var month))
+        {
+            return DateOnly.FromDateTime(month);
+        }
+        return null;
+    }
+
+    private static bool TryParseDateRange(string dateText, DateOnly month, out DateOnly startDate, out DateOnly endDate)
+    {
+        // e.g. "5 Jan" or "5 Jan - 11 Jan" or "28 Dec - 3 Jan" (spanning a year boundary)
+        startDate = endDate = default;
+
+        var parts = dateText.Split('-', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is 0 or > 2) return false;
+
+        if (!TryParseDayMonth(parts[0], month.Year, out startDate)) return false;
+
+        // A tournament listed under January can start in the previous December (and vice versa).
+        var monthGap = startDate.Month - month.Month;
+        if (monthGap > 6) startDate = startDate.AddYears(-1);
+        else if (monthGap < -6) startDate = startDate.AddYears(1);
+
+        endDate = startDate;
+        if (parts.Length == 2)
+        {
+            if (!TryParseDayMonth(parts[1], startDate.Year, out endDate)) return false;
+            if (endDate < startDate) endDate = endDate.AddYears(1);
+        }
+
+        return true;
+    }
+
+    private static bool TryParseDayMonth(string value, int year, out DateOnly date)
+    {
+        date = default;
+        if (!DateTime.TryParseExact($"{value} {year}", "d MMM yyyy", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var parsed))
+        {
+            return false;
+        }
+        date = DateOnly.FromDateTime(parsed);
+        return true;
+    }
+
+    private static string DetectOrganisation(HtmlNode row)
+    {
+        // Organisation is only indicated by an inline SVG logo in the row's first cell:
+        // the WDF logo carries id="WDF_Logo…", the PDC logo is identified by its viewBox width.
+        var logoHtml = row.SelectSingleNode("./div[1]")?.InnerHtml ?? string.Empty;
+        if (logoHtml.Contains("WDF_Logo", StringComparison.OrdinalIgnoreCase)) return "WDF";
+        if (logoHtml.Contains("324.629", StringComparison.Ordinal)) return "PDC";
+        return string.Empty;
+    }
+
     private static string? GetValueByLabel(HtmlNode parentContainer, string labelText)
     {
         var node = parentContainer.SelectSingleNode($".//div[contains(text(), '{labelText}')]/following-sibling::div[1]");

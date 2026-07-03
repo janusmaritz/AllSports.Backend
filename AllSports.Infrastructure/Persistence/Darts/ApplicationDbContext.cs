@@ -9,6 +9,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<PlayerProfile> Players { get; set; }
     public DbSet<DartsRanking> DartsRankings { get; set; }
+    public DbSet<DartsTournament> DartsTournaments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
