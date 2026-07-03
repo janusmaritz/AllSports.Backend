@@ -81,7 +81,7 @@ static async Task WarmUpDatabaseAsync(IServiceProvider services, ILogger logger)
         else
         {
             logger.LogError(
-                "Database warm-up failed after {Max} attempts. Check that LocalDB is running.",
+                "Database warm-up failed after {Max} attempts. Check the Supabase connection string.",
                 maxAttempts);
         }
     }

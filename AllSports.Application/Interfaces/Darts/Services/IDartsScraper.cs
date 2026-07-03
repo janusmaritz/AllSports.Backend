@@ -7,4 +7,6 @@ public interface IDartsScraper
     Task<PlayerProfile?> ScrapePlayerAsync(string profileUrl);
 
     Task<List<DartsRanking>> ScrapeRankingsAsync(string rankingsUrl);
+
+    Task<List<DartsTournament>> ScrapeTournamentsAsync(string calendarUrl);
 }
