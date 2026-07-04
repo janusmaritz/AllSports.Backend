@@ -36,16 +36,50 @@ public class SupabaseAuthService(HttpClient httpClient) : IAuthService
             new { email, password },
             JsonOptions);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
-            throw new InvalidOperationException("Email is already registered.");
-
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException("Registration failed.");
+            throw new InvalidOperationException(await ReadRegistrationErrorAsync(response));
 
         var auth = await response.Content.ReadFromJsonAsync<SupabaseAuthResponse>(JsonOptions)
             ?? throw new InvalidOperationException("Empty response from Supabase Auth.");
 
+        // With email confirmation enabled, Supabase returns the bare user object
+        // (no session) — the caller must confirm via the emailed link, then log in.
+        if (string.IsNullOrEmpty(auth.AccessToken))
+        {
+            return new AuthResult
+            {
+                RequiresEmailConfirmation = true,
+                Email = auth.User?.Email ?? auth.Email ?? email,
+                Role = "authenticated",
+                ExpiresAt = DateTime.UtcNow,
+            };
+        }
+
         return ToAuthResult(auth);
+    }
+
+    private static async Task<string> ReadRegistrationErrorAsync(HttpResponseMessage response)
+    {
+        SupabaseErrorResponse? error = null;
+        try
+        {
+            error = await response.Content.ReadFromJsonAsync<SupabaseErrorResponse>(JsonOptions);
+        }
+        catch (JsonException)
+        {
+            // Non-JSON error body — fall through to the defaults below.
+        }
+
+        return error?.ErrorCode switch
+        {
+            "user_already_exists" or "email_exists" => "Email is already registered.",
+            "over_email_send_rate_limit" or "over_request_rate_limit" =>
+                "Too many sign-up attempts. Please wait a few minutes and try again.",
+            "weak_password" or "validation_failed" when !string.IsNullOrWhiteSpace(error.Msg) => error.Msg,
+            _ => response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity
+                ? "Email is already registered."
+                : "Registration failed.",
+        };
     }
 
     private static AuthResult ToAuthResult(SupabaseAuthResponse auth) => new()
@@ -61,6 +95,15 @@ public class SupabaseAuthService(HttpClient httpClient) : IAuthService
         public string AccessToken { get; set; } = string.Empty;
         public long ExpiresAt { get; set; }
         public SupabaseUser? User { get; set; }
+
+        // Present when Supabase returns a bare user object (signup pending confirmation).
+        public string? Email { get; set; }
+    }
+
+    private sealed class SupabaseErrorResponse
+    {
+        public string? ErrorCode { get; set; }
+        public string? Msg { get; set; }
     }
 
     private sealed class SupabaseUser
