@@ -18,13 +18,18 @@ jobs:
 
       - name: Trigger rankings scrape
         run: |
-          response=$(curl -s -o /tmp/body.json -w "%{http_code}" \
-            -X POST "${{ vars.API_BASE_URL }}/api/darts/scrape-rankings" \
-            -H "Content-Type: application/json" \
-            -d "{\"url\": \"${{ secrets.RANKINGS_SCRAPE_URL }}\"}")
-          echo "HTTP status: $response"
-          cat /tmp/body.json
-          if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
-            echo "Scrape failed with status $response"
-            exit 1
-          fi
+          for i in 1 2 3; do
+            response=$(curl -s -o /tmp/body.json -w "%{http_code}" \
+              -X POST "${{ vars.API_BASE_URL }}/api/darts/scrape-rankings" \
+              -H "Content-Type: application/json" \
+              -d "{\"url\": \"${{ secrets.RANKINGS_SCRAPE_URL }}\"}")
+            echo "Attempt $i - HTTP status: $response"
+            cat /tmp/body.json
+            if [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
+              exit 0
+            fi
+            echo "Retrying in 15s..."
+            sleep 15
+          done
+          echo "Scrape failed after 3 attempts"
+          exit 1
