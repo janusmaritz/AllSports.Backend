@@ -1,26 +1,29 @@
 name: Weekly rankings scrape
-
 on:
   schedule:
     - cron: '0 8 * * 1'  # every Monday at 08:00 UTC
   workflow_dispatch:       # run manually from the Actions tab
-
 jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
+      - name: Debug - test target site with browser headers
+        run: |
+          curl -s -o /dev/null -w "Direct fetch status: %{http_code}\n" \
+            "https://mastercaller.com/rankings/pdc-order-of-merit" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            -H "Accept-Language: en-US,en;q=0.9"
+
       - name: Trigger rankings scrape
         run: |
           response=$(curl -s -o /tmp/body.json -w "%{http_code}" \
             -X POST "${{ vars.API_BASE_URL }}/api/darts/scrape-rankings" \
             -H "Content-Type: application/json" \
             -d "{\"url\": \"${{ secrets.RANKINGS_SCRAPE_URL }}\"}")
-
           echo "HTTP status: $response"
           cat /tmp/body.json
-
           if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
             echo "Scrape failed with status $response"
             exit 1
